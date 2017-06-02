@@ -1,0 +1,27 @@
+= goauth
+
+simple oauth server in go
+
+== build and run
+
+-----
+go get github.com/lib/pq
+go get github.com/RangelReale/osin
+go run goauth.go
+-----
+
+-----
+curl 0:14000/token -d "grant_type=password&username=luis&password=mora" \
+-H "Authorization: Basic MTIzNDphYWJiY2NkZA=="
+-----
+
+== database
+
+docker run -p 5432:5432 --name mypostgres -e POSTGRES_PASSWORD=postgres postgres
+
+CREATE TABLE users2(
+   username TEXT PRIMARY KEY NOT NULL,
+   password TEXT NOT NULL
+);
+insert into users2 (username, password) values ('luis', 'mora');
+
