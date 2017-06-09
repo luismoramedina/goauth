@@ -17,11 +17,20 @@ curl 0:14000/token -d "grant_type=password&username=luis&password=mora" \
 
 == database
 
+-----
 docker run -p 5432:5432 --name mypostgres -e POSTGRES_PASSWORD=postgres postgres
+-----
 
+-----
 CREATE TABLE users2(
    username TEXT PRIMARY KEY NOT NULL,
    password TEXT NOT NULL
 );
 insert into users2 (username, password) values ('luis', 'mora');
+-----
 
+== TODO
+
+. find a log lib
+. use env for config server
+. add resource files to binary (check github.com/jteeuwen/go-bindata)

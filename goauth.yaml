@@ -1,0 +1,11 @@
+authorizationExpiration: 250
+accessExpiration: 3600
+tokenType: Bearer
+allowedAuthorizeTypes:
+  - code
+allowedAccessTypes:
+  - password
+errorStatusCode: 200
+allowClientSecretInParams: true
+allowGetAccessRequest: false
+retainTokenAfterRefresh: false

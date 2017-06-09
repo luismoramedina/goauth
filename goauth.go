@@ -6,13 +6,22 @@ import (
    ex "github.com/RangelReale/osin/example"
    _ "github.com/lib/pq"
    "database/sql"
+   "fmt"
 )
+
 
 
 func main() {
 
+   //const configurationUrl string = "http://config-service-san-pos-global-dev.appls.boae.paas.gsnetcloud.corp/master/adn360-front.yml"
+   //   config, err := GetRemoteConfig(configurationUrl)
+   config, err := GetLocalConfig("goauth.yaml")
+   if err != nil {
+      panic(err)
+   }
+
    // ex.NewTestStorage implements the "osin.Storage" interface
-   server := osin.NewServer(NewServerConfig(), ex.NewTestStorage())
+   server := osin.NewServer(config, ex.NewTestStorage())
 
    // Access token endpoint
    http.HandleFunc("/token", func(w http.ResponseWriter, r *http.Request) {
@@ -28,28 +37,27 @@ func main() {
       osin.OutputJSON(resp, w, r)
    })
 
-   http.ListenAndServe(":14000", nil)
+   err = http.ListenAndServe(":14000", nil)
+   if err != nil {
+      panic(err)
+   }
 }
 func existUser (user string, pass string) bool {
    conninfo := "user=postgres password=mysecretpassword dbname=postgres sslmode=disable"
-   db, _ := sql.Open("postgres", conninfo)
+   db, err := sql.Open("postgres", conninfo)
    defer db.Close()
-   rows, _ := db.Query(
+   if err != nil {
+      fmt.Println(err)
+      return false
+   }
+
+   rows, err := db.Query(
       "SELECT * FROM users2 WHERE username=$1 and password=$2", user, pass )
    defer rows.Close()
-   return rows.Next()
-}
-
-func NewServerConfig() *osin.ServerConfig {
-   return &osin.ServerConfig{
-      AuthorizationExpiration:   250,
-      AccessExpiration:          3600,
-      TokenType:                 "Bearer",
-      AllowedAuthorizeTypes:     osin.AllowedAuthorizeType{osin.CODE},
-      AllowedAccessTypes:        osin.AllowedAccessType{osin.PASSWORD},
-      ErrorStatusCode:           200,
-      AllowClientSecretInParams: true,
-      AllowGetAccessRequest:     false,
-      RetainTokenAfterRefresh:   false,
+   if err != nil {
+      fmt.Println("[ERROR]", err)
+      return false
    }
+
+   return rows.Next()
 }
