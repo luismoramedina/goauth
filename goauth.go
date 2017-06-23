@@ -7,6 +7,8 @@ import (
    _ "github.com/lib/pq"
    "database/sql"
    "fmt"
+   "log"
+   "encoding/json"
 )
 
 
@@ -37,11 +39,42 @@ func main() {
       osin.OutputJSON(resp, w, r)
    })
 
+   // Introspect
+   http.HandleFunc("/instrospect", func(w http.ResponseWriter, r *http.Request) {
+      r.ParseForm()
+      log.Println(r.Form)
+      token := r.Form.Get("token")
+      tokenInfo := getTokenInfo(token)
+      log.Println(tokenInfo)
+      data, _ := json.Marshal(tokenInfo)
+      fmt.Fprintf(w, string(data))
+   })
+
    err = http.ListenAndServe(":14000", nil)
    if err != nil {
       panic(err)
    }
 }
+type TokenInfo struct {
+   Active bool `json:"active"`
+   Client_id string `json:"client_id"`
+   Username string `json:"username"`
+   Scope string `json:"scope"`
+   Exp int `json:"exp"`
+}
+
+func getTokenInfo(token string) TokenInfo {
+   //TODO go to database
+   tokenInfo := TokenInfo{
+      Active:true,
+      Client_id:"app",
+      Username: "luismora",
+      Exp: 1,
+      Scope: "user.read",
+   }
+   return tokenInfo
+}
+
 func existUser (user string, pass string) bool {
    conninfo := "user=postgres password=mysecretpassword dbname=postgres sslmode=disable"
    db, err := sql.Open("postgres", conninfo)
