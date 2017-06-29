@@ -3,15 +3,18 @@ package main
 import (
    "net/http"
    "github.com/RangelReale/osin"
-   ex "github.com/RangelReale/osin/example"
+//   ex "github.com/RangelReale/osin/example"
    _ "github.com/lib/pq"
    "database/sql"
    "fmt"
    "log"
    "encoding/json"
+   "github.com/ory/osin-storage/storage/postgres"
 )
 
+const conninfo = "user=postgres password=mysecretpassword dbname=postgres sslmode=disable"
 
+var store osin.Storage
 
 func main() {
 
@@ -22,8 +25,16 @@ func main() {
       panic(err)
    }
 
+   db, err := sql.Open("postgres", conninfo)
+   if err != nil {
+      panic(err)
+   }
+
+   store = postgres.New(db)
+//   initPgStorage(store.(*postgres.Storage))
+
    // ex.NewTestStorage implements the "osin.Storage" interface
-   server := osin.NewServer(config, ex.NewTestStorage())
+   server := osin.NewServer(config, store)
 
    // Access token endpoint
    http.HandleFunc("/token", func(w http.ResponseWriter, r *http.Request) {
@@ -34,17 +45,23 @@ func main() {
          if existUser(ar.Username, ar.Password) {
             ar.Authorized = true
          }
+         ar.UserData = ar.Username
          server.FinishAccessRequest(resp, r, ar)
       }
       osin.OutputJSON(resp, w, r)
    })
 
    // Introspect
-   http.HandleFunc("/instrospect", func(w http.ResponseWriter, r *http.Request) {
+   http.HandleFunc("/introspect", func(w http.ResponseWriter, r *http.Request) {
+      //TODO
       r.ParseForm()
       log.Println(r.Form)
       token := r.Form.Get("token")
-      tokenInfo := getTokenInfo(token)
+      tokenInfo, err := getTokenInfo(token)
+      if err != nil {
+         w.WriteHeader(http.StatusInternalServerError)
+         return
+      }
       log.Println(tokenInfo)
       data, _ := json.Marshal(tokenInfo)
       fmt.Fprintf(w, string(data))
@@ -55,6 +72,12 @@ func main() {
       panic(err)
    }
 }
+func initPgStorage(store *postgres.Storage) {
+   store.CreateSchemas()
+   client := osin.DefaultClient {Id: "1234", Secret: "aabbccdd", RedirectUri: "not_used"}
+   store.CreateClient(&client)
+
+}
 type TokenInfo struct {
    Active bool `json:"active"`
    Client_id string `json:"client_id"`
@@ -63,20 +86,22 @@ type TokenInfo struct {
    Exp int `json:"exp"`
 }
 
-func getTokenInfo(token string) TokenInfo {
-   //TODO go to database
-   tokenInfo := TokenInfo{
-      Active:true,
-      Client_id:"app",
-      Username: "luismora",
+func getTokenInfo(token string) (*TokenInfo, error) {
+   accessData, err := store.LoadAccess(token)
+   if err != nil {
+      return nil, err
+   }
+   tokenInfo := &TokenInfo{
+      Active: true,
+      Client_id: "app",
+      Username: accessData.UserData.(string),
       Exp: 1,
       Scope: "user.read",
    }
-   return tokenInfo
+   return tokenInfo, nil
 }
 
 func existUser (user string, pass string) bool {
-   conninfo := "user=postgres password=mysecretpassword dbname=postgres sslmode=disable"
    db, err := sql.Open("postgres", conninfo)
    defer db.Close()
    if err != nil {

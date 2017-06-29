@@ -11,8 +11,14 @@ go run goauth.go
 -----
 
 -----
-curl 0:14000/token -d "grant_type=password&username=luis&password=mora" \
--H "Authorization: Basic MTIzNDphYWJiY2NkZA=="
+curl -i 0:14000/token \
+    -d "grant_type=password&username=luis&password=mora" \
+    -H "Authorization: Basic MTIzNDphYWJiY2NkZA=="
+-----
+-----
+curl -i 0:14000/introspect \
+    -d "token=$mytoken" \
+    -H "Authorization: Basic MTIzNDphYWJiY2NkZA=="
 -----
 
 == database
@@ -27,10 +33,17 @@ CREATE TABLE users2(
    password TEXT NOT NULL
 );
 insert into users2 (username, password) values ('luis', 'mora');
+
+select * from client;
+select * from users2;
+select * from access;
+
 -----
 
 == TODO
 
+. integrate spring cloud
+. use routes
 . find a log lib
 . use env for config server
 . add resource files to binary (check github.com/jteeuwen/go-bindata)
