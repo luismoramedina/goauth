@@ -15,6 +15,7 @@ import (
 const conninfo = "user=postgres password=mysecretpassword dbname=postgres sslmode=disable"
 
 var store osin.Storage
+var db *sql.DB
 
 func main() {
 
@@ -25,7 +26,8 @@ func main() {
       panic(err)
    }
 
-   db, err := sql.Open("postgres", conninfo)
+   db, err = sql.Open("postgres", conninfo)
+   defer db.Close()
    if err != nil {
       panic(err)
    }
@@ -53,7 +55,6 @@ func main() {
 
    // Introspect
    http.HandleFunc("/introspect", func(w http.ResponseWriter, r *http.Request) {
-      //TODO
       r.ParseForm()
       log.Println(r.Form)
       token := r.Form.Get("token")
@@ -80,10 +81,10 @@ func initPgStorage(store *postgres.Storage) {
 }
 type TokenInfo struct {
    Active bool `json:"active"`
-   Client_id string `json:"client_id"`
-   Username string `json:"username"`
-   Scope string `json:"scope"`
-   Exp int `json:"exp"`
+   Client_id string `json:"client_id,omitempty"`
+   Username string `json:"username,omitempty"`
+   Scope string `json:"scope,omitempty"`
+   Exp int64 `json:"exp,omitempty"`
 }
 
 func getTokenInfo(token string) (*TokenInfo, error) {
@@ -91,24 +92,26 @@ func getTokenInfo(token string) (*TokenInfo, error) {
    if err != nil {
       return nil, err
    }
-   tokenInfo := &TokenInfo{
-      Active: true,
-      Client_id: "app",
-      Username: accessData.UserData.(string),
-      Exp: 1,
-      Scope: "user.read",
+
+   var tokenInfo *TokenInfo
+   if accessData.IsExpired() {
+      tokenInfo = &TokenInfo{
+         Active: false,
+      }
+   } else {
+      tokenInfo = &TokenInfo{
+         Active: true,
+         Client_id: accessData.Client.GetId(),
+         Username: accessData.UserData.(string),
+         Exp: accessData.ExpireAt().Unix(),
+         Scope: accessData.Scope,
+      }
    }
+
    return tokenInfo, nil
 }
 
 func existUser (user string, pass string) bool {
-   db, err := sql.Open("postgres", conninfo)
-   defer db.Close()
-   if err != nil {
-      fmt.Println(err)
-      return false
-   }
-
    rows, err := db.Query(
       "SELECT * FROM users2 WHERE username=$1 and password=$2", user, pass )
    defer rows.Close()
